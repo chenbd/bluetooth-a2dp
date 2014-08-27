@@ -98,7 +98,7 @@ public class BluetoothActivity extends Activity implements BluetoothBroadcastRec
 
                 runOnUiThread(new Runnable() {
                     @Override public void run() {
-                        Toast.makeText(getApplicationContext(), "Bluetooth Connected!", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getApplicationContext(), "Bluetooth Connected", Toast.LENGTH_SHORT).show();
                         Intent launcher = getPackageManager().getLaunchIntentForPackage(LAUNCH_PACKAGE);
                         startActivity(launcher);
                         finish();
@@ -118,7 +118,7 @@ public class BluetoothActivity extends Activity implements BluetoothBroadcastRec
 
                 runOnUiThread(new Runnable() {
                     @Override public void run() {
-                        Toast.makeText(getApplicationContext(), "Bluetooth Disconnected!", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getApplicationContext(), "Bluetooth Disconnected", Toast.LENGTH_SHORT).show();
                         finish();
                     }
                 });
