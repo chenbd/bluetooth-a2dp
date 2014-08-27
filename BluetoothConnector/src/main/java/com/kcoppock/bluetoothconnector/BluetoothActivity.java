@@ -3,9 +3,12 @@ package com.kcoppock.bluetoothconnector;
 import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothProfile;
+import android.content.Intent;
 import android.os.Bundle;
 import android.app.Activity;
 import android.util.Log;
+import android.widget.Toast;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -36,7 +39,9 @@ public class BluetoothActivity extends Activity implements BluetoothBroadcastRec
      * This is the name of the device to connect to. You can replace this with the name of
      * your device.
      */
-    private static final String HTC_MEDIA = "HTC Car A100 V2.4B";
+    private static final String BT_DEVICE_NAME = "(5C)Logitech Adapter";
+    private static final String BT_DEVICE_ADDRESS = "C8:84:47:03:F6:5C";
+    private static final String LAUNCH_PACKAGE = "com.plexapp.android";
 
     /**
      * Local reference to the device's BluetoothAdapter
@@ -78,20 +83,50 @@ public class BluetoothActivity extends Activity implements BluetoothBroadcastRec
     @Override
     public void onA2DPProxyReceived (BluetoothA2dp proxy) {
         Method connect = getConnectMethod();
-        BluetoothDevice device = findBondedDeviceByName(mAdapter, HTC_MEDIA);
+        Method disconnect = getDisonnectMethod();
+        BluetoothDevice device = findBondedDeviceByAddress(mAdapter, BT_DEVICE_ADDRESS);
 
         //If either is null, just return. The errors have already been logged
         if (connect == null || device == null) {
             return;
         }
 
-        try {
-            connect.setAccessible(true);
-            connect.invoke(proxy, device);
-        } catch (InvocationTargetException ex) {
-            Log.e(TAG, "Unable to invoke connect(BluetoothDevice) method on proxy. " + ex.toString());
-        } catch (IllegalAccessException ex) {
-            Log.e(TAG, "Illegal Access! " + ex.toString());
+        if (proxy.getConnectionState(device) == BluetoothProfile.STATE_DISCONNECTED) {
+            try {
+                connect.setAccessible(true);
+                connect.invoke(proxy, device);
+
+                runOnUiThread(new Runnable() {
+                    @Override public void run() {
+                        Toast.makeText(getApplicationContext(), "Bluetooth Connected!", Toast.LENGTH_SHORT).show();
+                        Intent launcher = getPackageManager().getLaunchIntentForPackage(LAUNCH_PACKAGE);
+                        startActivity(launcher);
+                        finish();
+                    }
+                });
+            } catch (InvocationTargetException ex) {
+                Log.e(TAG, "Unable to invoke connect(BluetoothDevice) method on proxy. " + ex.toString());
+            } catch (IllegalAccessException ex) {
+                Log.e(TAG, "Illegal Access! " + ex.toString());
+            }
+        }
+
+        if(proxy.getConnectionState(device) == BluetoothProfile.STATE_CONNECTED) {
+            try {
+                disconnect.setAccessible(true);
+                disconnect.invoke(proxy, device);
+
+                runOnUiThread(new Runnable() {
+                    @Override public void run() {
+                        Toast.makeText(getApplicationContext(), "Bluetooth Disconnected!", Toast.LENGTH_SHORT).show();
+                        finish();
+                    }
+                });
+            } catch (InvocationTargetException ex) {
+                Log.e(TAG, "Unable to invoke disconnect(BluetoothDevice) method on proxy. " + ex.toString());
+            } catch (IllegalAccessException ex) {
+                Log.e(TAG, "Illegal Access! " + ex.toString());
+            }
         }
     }
 
@@ -104,6 +139,15 @@ public class BluetoothActivity extends Activity implements BluetoothBroadcastRec
             return BluetoothA2dp.class.getDeclaredMethod("connect", BluetoothDevice.class);
         } catch (NoSuchMethodException ex) {
             Log.e(TAG, "Unable to find connect(BluetoothDevice) method in BluetoothA2dp proxy.");
+            return null;
+        }
+    }
+
+    private Method getDisonnectMethod () {
+        try {
+            return BluetoothA2dp.class.getDeclaredMethod("disconnect", BluetoothDevice.class);
+        } catch (NoSuchMethodException ex) {
+            Log.e(TAG, "Unable to find disconnect(BluetoothDevice) method in BluetoothA2dp proxy.");
             return null;
         }
     }
@@ -123,6 +167,17 @@ public class BluetoothActivity extends Activity implements BluetoothBroadcastRec
             }
         }
         Log.w(TAG, String.format("Unable to find device with name %s.", name));
+        return null;
+    }
+
+    private static BluetoothDevice findBondedDeviceByAddress (BluetoothAdapter adapter, String address) {
+        for (BluetoothDevice device : getBondedDevices(adapter)) {
+            if(device.getAddress().equals(address)) {
+                Log.v(TAG, String.format("Found device with name %s and address %s.", device.getName(), device.getAddress()));
+                return device;
+            }
+        }
+        Log.w(TAG, String.format("Unable to find device with address %s.", address));
         return null;
     }
 
